@@ -7,6 +7,7 @@ import {
 import { initialUsers } from './data';
 import './App.css';
 
+// New Phase Constants
 const PHASE_VOTING = "VOTING";
 const PHASE_TOP_5_REVEAL = "TOP_5_REVEAL";
 const PHASE_FINAL_DECLARE = "FINAL_DECLARE";
@@ -20,7 +21,7 @@ function App() {
   const [error, setError] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [resultsPhase, setResultsPhase] = useState(PHASE_VOTING);
-  const [top5Candidates, setTop5Candidates] = useState([]);
+  const [top5Candidates, setTop5Candidates] = useState([]); // Based on Round 1 votes
 
   useEffect(() => {
     const unsubConfig = onSnapshot(doc(db, "meta", "config"), (docSnap) => {
@@ -35,11 +36,13 @@ function App() {
     const unsubUsers = onSnapshot(q, (snapshot) => {
       let cands = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       
+      // Sort all candidates by roll number (Password) for general display
       cands.sort((a, b) => a.Password.localeCompare(b.Password));
       setCandidates(cands);
 
-      const sortedByVotes = [...cands].sort((a, b) => b.votes - a.votes);
-      const top5 = sortedByVotes.slice(0, 5);
+      // Calculate and store top 5 candidates by Round 1 votes (votes field)
+      const sortedByRound1Votes = [...cands].sort((a, b) => b.votes - a.votes);
+      const top5 = sortedByRound1Votes.slice(0, 5);
       setTop5Candidates(top5); 
     });
 
@@ -61,9 +64,10 @@ function App() {
           userId: u.userId.toString(),
           Password: u.Password,
           Name: u.Name,
-          votes: 0,
-          hasVoted: false,
-          hasVotedPhase2: false
+          votes: 0, // Round 1 votes
+          votesPhase2: 0, // Round 2 votes (NEW FIELD)
+          hasVoted: false, // Phase 1 voting status
+          hasVotedPhase2: false // Phase 2 voting status
         });
       });
 
@@ -91,6 +95,7 @@ function App() {
       } else if (currentPhase === PHASE_TOP_5_REVEAL) {
         nextPhase = PHASE_FINAL_DECLARE;
       } else {
+        // Cycle back to voting/reset state
         nextPhase = PHASE_VOTING; 
       }
       
@@ -116,6 +121,7 @@ function App() {
 
       if (!querySnapshot.empty) {
         const userData = querySnapshot.docs[0].data();
+        // Ensure hasVotedPhase2 is set, defaulting to false if undefined
         setUser({ 
           ...userData, 
           docId: querySnapshot.docs[0].id,
@@ -134,11 +140,15 @@ function App() {
   const handleVote = async () => {
     if (!selectedCandidate || !user) return;
     
-    const userUpdateField = 
-        resultsPhase === PHASE_VOTING ? 'hasVoted' : 
-        (resultsPhase === PHASE_TOP_5_REVEAL ? 'hasVotedPhase2' : null);
-
-    if (!userUpdateField) {
+    let voteField, userUpdateField;
+    
+    if (resultsPhase === PHASE_VOTING) {
+        voteField = 'votes';
+        userUpdateField = 'hasVoted';
+    } else if (resultsPhase === PHASE_TOP_5_REVEAL) {
+        voteField = 'votesPhase2'; // Increment Round 2 votes
+        userUpdateField = 'hasVotedPhase2';
+    } else {
         alert("Voting is currently closed.");
         return;
     }
@@ -153,10 +163,13 @@ function App() {
       const candidateRef = doc(db, "users", selectedCandidate.id);
       const userRef = doc(db, "users", user.docId);
       
-      await updateDoc(candidateRef, { votes: increment(1) });
+      // Increment the correct vote count for the candidate
+      await updateDoc(candidateRef, { [voteField]: increment(1) });
       
+      // Mark user as voted in the current phase
       await updateDoc(userRef, { [userUpdateField]: true });
 
+      // Update local user state
       setUser(prev => ({...prev, [userUpdateField]: true}));
 
       alert("Vote Casted Successfully!");
@@ -166,10 +179,21 @@ function App() {
     }
     setLoading(false);
   };
-
-  const sortedCandidates = [...candidates].sort((a, b) => b.votes - a.votes);
-  const winner = sortedCandidates[0];
   
+  // Filter all candidates to only include those in the top 5 from R1
+  const finalCandidates = candidates.filter(c => 
+    top5Candidates.some(top5 => top5.id === c.id)
+  );
+
+  // Sort final candidates based ONLY on Round 2 votes (votesPhase2)
+  const sortedFinalCandidates = [...finalCandidates].sort((a, b) => b.votesPhase2 - a.votesPhase2);
+  const finalWinner = sortedFinalCandidates[0];
+  const runnersUp = sortedFinalCandidates.slice(1);
+  
+  // Candidates for phase 1 voting (all candidates)
+  const candidatesForPhase1 = [...candidates].sort((a, b) => a.Password.localeCompare(b.Password));
+
+  // Candidates for phase 2 voting (only top 5 from R1)
   const candidatesForPhase2 = candidates.filter(c => 
     top5Candidates.some(top5 => top5.id === c.id)
   );
@@ -217,21 +241,24 @@ function App() {
            <div className="winner-section">
               <div className="winner-card">
                 <h3 className="winner-title">THE CHAMBDI IS</h3>
-                <div className="winner-name">{winner?.Name}</div>
-                <div style={{color:'white'}}>{winner?.votes} VOTES</div>
+                <div className="winner-name">{finalWinner?.Name}</div>
+                <div style={{color:'white'}}>{finalWinner?.votesPhase2} FINAL VOTES</div>
               </div>
            </div>
 
-           <h3>Final Leaderboard</h3>
+           <h3>Runners Up</h3>
            <div className="candidates-grid">
-             {sortedCandidates.map(cand => (
-               <div key={cand.id} className="candidate-card" style={{borderColor: cand.votes > 0 ? '#555' : '#333'}}>
+             {runnersUp.map(cand => (
+               <div key={cand.id} className="candidate-card">
                  <div className="roll-no">{cand.Name}</div>
                  <div style={{fontSize:'0.8rem', color:'#666'}}>{cand.Password}</div>
-                 <div className="vote-count" style={{color:'white'}}>{cand.votes} Votes</div>
+                 <div className="vote-count" style={{color:'white'}}>{cand.votesPhase2} Votes</div>
                </div>
              ))}
            </div>
+           {runnersUp.length === 0 && (
+             <p style={{textAlign:'center', color:'#888'}}>Only one candidate was available for the final round.</p>
+           )}
         </div>
       ) : 
 
@@ -250,8 +277,8 @@ function App() {
             </div>
           ) : (
             <div>
-              <h3 style={{textAlign:'center'}}>Top 5 Finalists - Vote Now!</h3>
-              <p style={{color:'#888', marginBottom:'20px', textAlign:'center'}}>Select one person from the Top 5 to be the ultimate Chambdi.</p>
+              <h3 style={{textAlign:'center'}}>Top 5 Finalists - Fresh Vote!</h3>
+              <p style={{color:'#888', marginBottom:'20px', textAlign:'center'}}>Select one person from the Top 5. (Previous votes don't count here)</p>
               
               <div className="candidates-grid">
                 {candidatesForPhase2.map((cand) => (
@@ -281,7 +308,6 @@ function App() {
         </div>
       ) : 
       
-      (
         <div>
           {user.hasVoted ? (
             <div className="wait-screen">
@@ -300,7 +326,7 @@ function App() {
               <p style={{color:'#888', marginBottom:'20px', textAlign:'center'}}>Select one person from all candidates.</p>
               
               <div className="candidates-grid">
-                {candidates.map((cand) => (
+                {candidatesForPhase1.map((cand) => (
                   <div 
                     key={cand.id} 
                     className={`candidate-card ${selectedCandidate?.id === cand.id ? 'selected' : ''}`}
@@ -325,7 +351,7 @@ function App() {
             </div>
           )}
         </div>
-      )}
+      }
 
       {/* Admin Panel (uncommented for control) */}
       {/*<div className="admin-panel">
