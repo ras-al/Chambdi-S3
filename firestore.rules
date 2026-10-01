@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isTkmceStudent() {
+      return isAuthenticated()
+        && request.auth.token.email != null
+        && request.auth.token.email.matches('.*@tkmce\\.ac\\.in$')
+        && request.auth.token.email_verified == true;
+    }
+
+    function getAdmissionNumber() {
+      return request.auth.token.email.split('@')[0];
+    }
+
+    function studentRecordExists() {
+      return exists(/databases/$(database)/documents/users/$(getAdmissionNumber()));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && (
+        getAdmissionNumber() == userId ||
+        (resource != null && resource.data.uid == request.auth.uid)
+      );
+    }
+
+    function isAdmin() {
+      return isTkmceStudent() && (
+        getAdmissionNumber() == '240236' ||
+        (studentRecordExists() &&
+         get(/databases/$(database)/documents/users/$(getAdmissionNumber())).data.isAdmin == true)
+      );
+    }
+
+    // Phase and game configuration
+    match /meta/{configDoc} {
+      allow read: if isTkmceStudent() && studentRecordExists();
+      allow write: if isAdmin();
+    }
+
+    // Student records and candidate roster
+    match /users/{userId} {
+      // Any verified TKMCE student on the roster can read candidate list and results
+      allow read: if isTkmceStudent() && studentRecordExists();
+
+      // Allowed updates:
+      // 1. Admins have full write rights
+      // 2. A student can update their own record (such as uid, email, hasVoted, hasVotedPhase2)
+      // 3. A student can cast a vote by incrementing votes or votesPhase2 on a candidate record
+      allow update: if isTkmceStudent() && studentRecordExists() && (
+        isAdmin() ||
+        isOwner(userId) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votesPhase2'])
+      );
+
+      // Create and delete restricted to admin
+      allow create, delete: if isAdmin();
+    }
+  }
+}

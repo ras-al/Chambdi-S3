@@ -1,0 +1,51 @@
+/* Season 5 Brutalist Design Tokens */
+:root {
+  --paper: #E6E4DF;
+  --ink: #0B0B0B;
+  --blood: #9E1B17;
+  --grey: #6E6C68;
+  --font-display: 'Anton', sans-serif;
+  --font-body: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --border-width: 3px;
+  --border-ink: var(--border-width) solid var(--ink);
+  --border-blood: var(--border-width) solid var(--blood);
+  --shadow-offset: 6px 6px 0px var(--ink);
+  --shadow-offset-blood: 6px 6px 0px var(--blood);
+}
+
+/* Reset and base styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: 0 !important;
+}
+
+html, body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible focus styling */
+:focus-visible {
+  outline: 3px solid var(--blood);
+  outline-offset: 2px;
+}
+
+/* Minimal mechanical transitions */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
