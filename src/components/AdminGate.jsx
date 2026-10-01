@@ -2,15 +2,33 @@ import React, { useState } from 'react';
 import { MaskGraphic } from './Graphics';
 import { LabelBlock } from './CornerLabels';
 
+// Helper to compute SHA-256 hex string using browser crypto
+async function computeSha256(text) {
+  if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
+    return null;
+  }
+  try {
+    const msgBuffer = new TextEncoder().encode(text);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+}
+
 export function AdminGate({ onUnlock, onReturn }) {
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Retrieve password from environment variable with fallback
-  const masterPassword = import.meta.env.VITE_ADMIN_PASSWORD || "chambdi5_admin_secret";
+  // Retrieve access key from environment variable with backward compatibility
+  const masterKey =
+    import.meta.env.VITE_ADMIN_ACCESS_KEY ||
+    import.meta.env.VITE_ADMIN_PASSWORD ||
+    "chambdi5_admin_secret";
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setErrorMessage('');
@@ -23,7 +41,14 @@ export function AdminGate({ onUnlock, onReturn }) {
       return;
     }
 
-    if (trimmedInput === masterPassword) {
+    const inputHash = await computeSha256(trimmedInput);
+
+    // Support both plaintext match and SHA-256 hash match
+    const isMatch =
+      trimmedInput === masterKey ||
+      (inputHash && inputHash.toLowerCase() === masterKey.toLowerCase());
+
+    if (isMatch) {
       onUnlock();
     } else {
       setErrorMessage("ACCESS REJECTED. INVALID COMMAND KEY.");

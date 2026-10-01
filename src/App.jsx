@@ -122,8 +122,17 @@ function App() {
   const [isAdminRoute, setIsAdminRoute] = useState(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
+      const hash = window.location.hash;
       const params = new URLSearchParams(window.location.search);
-      return path === '/admin' || path === '/admin/' || params.get('testScreen') === 'admin';
+      return (
+        path === '/admin' ||
+        path === '/admin/' ||
+        hash === '#/admin' ||
+        hash === '#admin' ||
+        params.get('screen') === 'admin' ||
+        params.get('admin') === 'true' ||
+        params.get('testScreen') === 'admin'
+      );
     }
     return false;
   });
@@ -148,15 +157,29 @@ function App() {
 
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Sync browser pathname changes for admin routing
+  // Sync browser pathname, hash, and history changes for admin routing
   useEffect(() => {
-    const handlePopState = () => {
+    const handleUrlChange = () => {
       const path = window.location.pathname;
+      const hash = window.location.hash;
       const params = new URLSearchParams(window.location.search);
-      setIsAdminRoute(path === '/admin' || path === '/admin/' || params.get('testScreen') === 'admin');
+      const isAdm = (
+        path === '/admin' ||
+        path === '/admin/' ||
+        hash === '#/admin' ||
+        hash === '#admin' ||
+        params.get('screen') === 'admin' ||
+        params.get('admin') === 'true' ||
+        params.get('testScreen') === 'admin'
+      );
+      setIsAdminRoute(isAdm);
     };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
   }, []);
 
   const navigateToPublic = () => {

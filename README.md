@@ -46,9 +46,9 @@ Required variables:
 - `VITE_FIREBASE_STORAGE_BUCKET`
 - `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
-- `VITE_ADMIN_PASSWORD` (Master password to unlock the `/admin` command console)
+- `VITE_ADMIN_ACCESS_KEY` (Master clearance key to unlock the `/admin` console, supports plain text or SHA-256 hash)
 
-Note: Legacy `VITE_API_KEY`, `VITE_AUTH_DOMAIN`, etc. are also supported for backwards compatibility.
+Note: Legacy `VITE_API_KEY`, `VITE_AUTH_DOMAIN`, and `VITE_ADMIN_PASSWORD` are also supported for backwards compatibility.
 
 ---
 
@@ -58,9 +58,10 @@ Note: Legacy `VITE_API_KEY`, `VITE_AUTH_DOMAIN`, etc. are also supported for bac
    - The administration dashboard is hosted exclusively at the `/admin` path.
    - Normal users on the public arena (`/`) have zero visibility into administrative controls; all admin buttons, quick bars, and phase triggers are completely stripped from student views.
 
-2. Master Password Protection:
+2. Master Clearance Key Protection:
    - Access to `/admin` is locked behind the brutalist Admin Gateway.
-   - The gate verifies the input against `VITE_ADMIN_PASSWORD` defined in `.env`.
+   - The gate verifies the input against `VITE_ADMIN_ACCESS_KEY` defined in `.env`.
+   - Supports plain text strings or SHA-256 hex hashes computed via browser `crypto.subtle`.
    - Successful entry grants an authenticated session in `sessionStorage`.
    - Administrators can lock the console at any time with the "LOCK CONSOLE" control.
 

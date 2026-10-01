@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#0B0B0B" />
+  <!-- Angular mask motif -->
+  <path d="M12 16 L32 8 L52 16 L48 48 L32 56 L16 48 Z" fill="#E6E4DF" />
+  <path d="M32 8 L52 16 L48 48 L32 56 Z" fill="#9E1B17" />
+  <!-- Eye cutout -->
+  <polygon points="20,28 28,26 26,33 19,32" fill="#0B0B0B" />
+</svg>
